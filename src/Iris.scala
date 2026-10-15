@@ -503,10 +503,11 @@ class IrisConfig(sim: Boolean = false)
           routerParams = testchipip.soc.OffchipRouterParams(tableEntries = 4),
           ports = Seq(
             // PD hardens the two UCIe links together, so UcieComplexPort puts
-            // both instances inside one UcieComplex module. They are identical
-            // logic and share a `moduleId`, so they dedup into a single UcieTL
-            // underneath it; splitting them again is a matter of giving one its
-            // own `moduleId`.
+            // both instances inside one UcieComplex module. Each link is still
+            // its own module, `moduleId` 0 and 1, so that a physical design can
+            // give each the lane clock distribution network laid out for its
+            // own bump field (see `ClkDistLayout`). Each link also has its own
+            // high-speed and digital bypass clock bumps.
             UcieComplexPort(edu.berkeley.cs.uciedigital.tilelink.UcieTLParams(
               address = 0x200000,
               managerWhere = SBUS,
@@ -517,7 +518,8 @@ class IrisConfig(sim: Boolean = false)
               address = 0x208000,
               managerWhere = SBUS,
               numLanes = 16,
-              includeDefaultModels = true
+              includeDefaultModels = true,
+              moduleId = 1
             ))
         ))) ++
         new WithIrisUncore(sim)

@@ -45,6 +45,7 @@ class JTAGChipIO(hasReset: Boolean) extends Bundle {
 
 class IrisSystem(implicit p: Parameters)
     extends edu.berkeley.cs.chippy.ChippySystem
+    with CanHaveClockTap
     with testchipip.soc.CanHaveChipletRouting
     with testchipip.soc.CanHaveSubsystemInjectors // Enables the subsystem injector API
     with testchipip.soc.CanHaveSwitchableOffchipBus // Enables optional off-chip-bus with interface-switch
@@ -55,10 +56,17 @@ class IrisSystem(implicit p: Parameters)
 
 class IrisTop(implicit p: Parameters) extends LazyModule with BindingScope {
   val system = LazyModule(new IrisSystem)
+
+  val tlbus = system.asInstanceOf[BaseSubsystem].locateTLBusWrapper(system.prciParams.slaveWhere)
+  val baseAddress = system.prciParams.baseAddress
+  val clockDivider = system.prci_ctrl_domain { LazyModule(new TLClockDivider (baseAddress + 0x20000, tlbus.beatBytes, enable=true)) }
+
   val clockGroupsSourceNode = ClockGroupSourceNode(
     Seq(ClockGroupSourceParameters())
   )
-  system.chiptopClockGroupsNode := clockGroupsSourceNode
+  tlbus.coupleTo("clock-div-ctrl")    { clockDivider.tlNode := TLFragmenter(tlbus.beatBytes, tlbus.blockBytes) := TLBuffer() := _ }  // Off-chip clock divider
+  system.chiptopClockGroupsNode := clockDivider.clockNode := clockGroupsSourceNode
+
   val debugClockSinkNode = ClockSinkNode(Seq(ClockSinkParameters()))
   debugClockSinkNode := system
     .locateTLBusWrapper(p(ExportDebug).slaveWhere)
@@ -122,6 +130,9 @@ class IrisTop(implicit p: Parameters) extends LazyModule with BindingScope {
 
     // Tie off interupts and chip ID
     system.module.interrupts := DontCare
+
+    val clock_tap = IO(Output(Clock()))
+    clock_tap := system.clockTapIO.get.getWrappedValue
 
     val serial_tl = IO(
       new DecoupledExternalSyncPhitIO(p(SerialTLKey)(0).phyParams.phitWidth)

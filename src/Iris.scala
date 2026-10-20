@@ -490,7 +490,6 @@ class IrisConfig(sim: Boolean = false)
         ) ++
         new shuttle.common.WithShuttleTileBeatBytes(16) ++
         new shuttle.common.WithTCM(size = 128L << 10, banks = 2) ++
-        // new shuttle.common.WithShuttleTileBoundaryBuffers() ++
         // ICache
         new shuttle.common.WithL1ICacheWays(2) ++
         new shuttle.common.WithL1ICacheSets(64) ++
